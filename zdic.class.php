@@ -56,13 +56,37 @@ class zdic {
         $meanings = array();
         preg_match_all("#<p( class=\"zdct([0-9])\")?>([^</]*)</p>#usi", $raw, $meanings);
         
-        // Resolve Pinyin
-        
-        return array(
+        // Preliminary Data Array...
+        $data = array(
             "metadata" => $this->internalState["metadata"],
             "pinyin" => $pinyin[1],
             "meanings" => $meanings[3]
         );
+        
+        // Resolve Pinyin to their meanings
+        if(count($data["pinyin"]) > 1) {
+            $currentPinyinPointer = 0;
+            $currentResolutionBullet = 0;
+            foreach($data["meanings"] as $mKey => $mValue) {
+                $readResolutionBullet = $mValue[0]; // FIXME: only supports <= 10 meanings / pinyin (10 was a fix to pass unit-testing)
+                    if($mValue[1] != "." && $mValue[1] === "0") $readResolutionBullet = 10;
+                if($readResolutionBullet > $currentResolutionBullet) {
+                    // keep going.
+                }
+                else {
+                    // change pinyin.
+                    $currentPinyinPointer++;
+                    $currentResolutionBullet = 0;
+                    
+                    if(!isset($data["pinyin"][$currentPinyinPointer])) break;
+                }
+                
+                $data["resolvedMeanings"][$data["pinyin"][$currentPinyinPointer]][] = $mValue;
+                $currentResolutionBullet++;
+            }
+        }
+        
+        return $data;
     }
     
     /**
@@ -113,7 +137,7 @@ class zdic {
         $resp = str_replace("，", ", ", $resp);
         $resp = str_replace("；", ";", $resp);
         $resp = str_replace("：", ":", $resp);
-        $resp = str_replace("◎", "* ", $resp);
+        $resp = str_replace("◎", "1. ", $resp);
         
         // Anti-ZDIC-Protection: Find if some DIV is being hidden, strip it from the raw output
         $divID = array();
@@ -138,7 +162,6 @@ class zdic {
 
     /**
      * UTF-8 Character to Ordinal - used to request zdic codes
-     * Credit to arglanir+phpnet[at]gmail.com
      */
     private function _ordutf8($string) {
         $offset = 0;
