@@ -17,12 +17,17 @@
  */
 
 class zdic {
-    
     /**
      * Word-related functions.
      */
     public function getWord($request) {
         $raw = $this->_zdic_dl($request, 2);
+        if(!$raw)
+            return array(
+                "metadata" => $this->internalState["metadata"],
+                "pinyin" => array(),
+                "meanings" => array()
+            );
         
         // Match Pinyin
         $pinyin = array();
@@ -46,6 +51,12 @@ class zdic {
      */
     public function getCharacter($request) {
         $raw = $this->_zdic_dl($request, 1);
+        if(!$raw)
+            return array(
+                "metadata" => $this->internalState["metadata"],
+                "pinyin" => array(),
+                "meanings" => array()
+            );
         // echo "<xmp>" . $raw . "</xmp>";
         
         // Match Pinyin
@@ -129,6 +140,19 @@ class zdic {
         
         $resp = curl_exec($curl);
         curl_close($curl);
+        
+        // Find if we actually reached a page...
+        if(strlen($resp) < 16 || strpos("查无此词语", $resp) !== false) {
+            $this->internalState = array(
+                "metadata" => array(
+                    "request" => $request,
+                    "type" => $type
+                ),
+                "raw" => false
+            );
+            
+            return false;
+        }
 
         // Clean out Chinese Punctuation to save space
         $resp = str_replace("（", "(", $resp);
